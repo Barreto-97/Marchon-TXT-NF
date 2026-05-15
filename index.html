@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marchon · Processador de NF</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+
+<!-- SheetJS para geração de XLSX -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --navy-950: #03081a;
+    --navy-900: #060d2e;
+    --navy-800: #0b1748;
+    --navy-700: #0f2060;
+    --navy-600: #1a3080;
+    --navy-500: #1e3fa3;
+    --navy-400: #2e56cc;
+    --accent:   #4d8bff;
+    --accent-2: #7eb8ff;
+    --glow:     #4d8bff33;
+    --text:     #e8edf8;
+    --text-dim: #8ca0c8;
+    --text-muted: #4a5a82;
+    --border:   #1a2d5a;
+    --border-lit:#2a4080;
+    --success:  #22d87a;
+    --error:    #ff5566;
+    --card-bg:  #080f2a;
+    --glass:    rgba(13, 24, 60, 0.7);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+
+  body {
+    background-color: var(--navy-950);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 10%, #0f2060 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 85% 85%, #0b1748 0%, transparent 65%),
+      radial-gradient(ellipse 30% 30% at 50% 50%, #0a153a 0%, transparent 80%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── LAYOUT ── */
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    margin-bottom: 52px;
+  }
+
+  .logo-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--navy-800);
+    border: 1px solid var(--border-lit);
+    border-radius: 100px;
+    padding: 6px 18px 6px 10px;
+    margin-bottom: 28px;
+    animation: fadeDown .6s ease both;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .6; transform: scale(.85); }
+  }
+
+  .logo-label {
+    font-family: 'DM Mono', monospace;
+    font-size: .7rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    color: var(--text);
+    animation: fadeDown .6s .1s ease both;
+  }
+
+  h1 span {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    margin-top: 14px;
+    color: var(--text-dim);
+    font-size: .95rem;
+    font-weight: 300;
+    line-height: 1.6;
+    animation: fadeDown .6s .2s ease both;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border-lit);
+    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    animation: fadeUp .5s .3s ease both;
+  }
+
+  .card-header {
+    padding: 20px 28px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--navy-600), var(--navy-400));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    box-shadow: 0 4px 16px #1e3fa344;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .card-body { padding: 28px; }
+
+  /* ── STEPS ── */
+  .steps { display: flex; flex-direction: column; gap: 20px; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .step-num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--navy-700);
+    border: 1px solid var(--border-lit);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: .75rem;
+    font-weight: 500;
+    color: var(--accent-2);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-content {}
+
+  .step-label {
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  /* ── DROP ZONE ── */
+  .drop-zone {
+    border: 1.5px dashed var(--border-lit);
+    border-radius: 14px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s, box-shadow .2s;
+    position: relative;
+    background: rgba(10, 18, 50, 0.4);
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(77, 139, 255, .06);
+    box-shadow: 0 0 0 4px var(--glow);
+  }
+
+  .drop-zone.has-file {
+    border-color: var(--success);
+    border-style: solid;
+    background: rgba(34, 216, 122, .04);
+  }
+
+  .drop-icon { font-size: 2rem; margin-bottom: 8px; }
+
+  .drop-main {
+    font-size: .9rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .drop-sub {
+    font-size: .78rem;
+    color: var(--text-muted);
+  }
+
+  .file-name {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: .78rem;
+    color: var(--success);
+  }
+
+  .drop-zone.has-file .file-name { display: flex; }
+  .drop-zone.has-file .drop-default { display: none; }
+
+  input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0;
+  }
+
+  /* ── PROCESS BUTTON ── */
+  .btn-process {
+    width: 100%;
+    padding: 16px 24px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, var(--navy-500) 0%, var(--accent) 100%);
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s, box-shadow .2s;
+    box-shadow: 0 4px 24px #2e56cc44, 0 1px 0 rgba(255,255,255,.08) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-process::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .btn-process:hover:not(:disabled) {
+    opacity: .92;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px #2e56cc55;
+  }
+
+  .btn-process:active:not(:disabled) { transform: translateY(0); }
+
+  .btn-process:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+
+  .btn-spin {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+
+  .btn-process.loading .btn-spin { display: block; }
+  .btn-process.loading .btn-icon { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── LOG / STATUS ── */
+  .log-box {
+    margin-top: 20px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(3, 8, 26, .6);
+    overflow: hidden;
+    display: none;
+  }
+
+  .log-box.visible { display: block; animation: fadeUp .3s ease both; }
+
+  .log-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .log-title {
+    font-family: 'DM Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .log-status {
+    font-family: 'DM Mono', monospace;
+    font-size: .72rem;
+    padding: 2px 10px;
+    border-radius: 100px;
+    background: var(--navy-800);
+    border: 1px solid var(--border-lit);
+    color: var(--text-dim);
+  }
+
+  .log-status.ok { background: rgba(34,216,122,.12); border-color: var(--success); color: var(--success); }
+  .log-status.err { background: rgba(255,85,102,.12); border-color: var(--error); color: var(--error); }
+
+  .log-entries {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .log-line {
+    display: flex;
+    gap: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: .78rem;
+  }
+
+  .log-ts { color: var(--text-muted); flex-shrink: 0; }
+  .log-msg { color: var(--text-dim); }
+  .log-msg.success { color: var(--success); }
+  .log-msg.error { color: var(--error); }
+  .log-msg.info { color: var(--accent-2); }
+
+  /* ── RESULTS ── */
+  .results {
+    margin-top: 24px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeUp .4s ease both;
+  }
+
+  .results.visible { display: flex; }
+
+  .result-label {
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .result-cards { display: flex; flex-direction: column; gap: 10px; }
+
+  .result-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border-lit);
+    background: rgba(14, 22, 55, .5);
+    cursor: pointer;
+    transition: border-color .2s, background .2s, transform .15s;
+    text-decoration: none;
+  }
+
+  .result-item:hover {
+    border-color: var(--accent);
+    background: rgba(77, 139, 255, .08);
+    transform: translateX(3px);
+  }
+
+  .result-item-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .result-item-info { flex: 1; min-width: 0; }
+
+  .result-item-name {
+    font-family: 'DM Mono', monospace;
+    font-size: .82rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .result-item-desc {
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .result-item-arrow {
+    color: var(--accent);
+    font-size: .9rem;
+    flex-shrink: 0;
+  }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: flex;
+    gap: 0;
+    border-radius: 14px;
+    border: 1px solid var(--border-lit);
+    overflow: hidden;
+    background: rgba(14, 22, 55, .5);
+  }
+
+  .stat {
+    flex: 1;
+    padding: 16px 18px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .stat:last-child { border-right: none; }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-key {
+    font-size: .72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-top: 4px;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    margin-top: 52px;
+    font-size: .75rem;
+    color: var(--text-muted);
+    animation: fadeUp .5s .5s ease both;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 4px; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 540px) {
+    .wrapper { padding: 32px 16px 60px; }
+    .stats-bar { flex-direction: column; }
+    .stat { border-right: none; border-bottom: 1px solid var(--border); }
+    .stat:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-pill">
+      <div class="logo-dot"></div>
+      <span class="logo-label">Marchon · NF Tools</span>
+    </div>
+    <h1>Processador de<br><span>Notas Fiscais</span></h1>
+    <p class="subtitle">Selecione um arquivo TXT de NF para gerar automaticamente<br>o TXT revisado (com quebra de 100 itens/NF) e os Excels original e revisado.</p>
+  </header>
+
+  <!-- CARD -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📄</div>
+      <div class="card-title">Configuração do Processamento</div>
+    </div>
+
+    <div class="card-body">
+      <div class="steps">
+
+        <!-- STEP 1 -->
+        <div class="step">
+          <div class="step-num">01</div>
+          <div class="step-content">
+            <div class="step-label">Arquivo TXT da Nota Fiscal</div>
+            <div class="drop-zone" id="dropZone">
+              <input type="file" id="fileInput" accept=".txt" />
+              <div class="drop-default">
+                <div class="drop-icon">📂</div>
+                <div class="drop-main">Arraste o arquivo aqui ou clique para selecionar</div>
+                <div class="drop-sub">Formato suportado: .txt</div>
+              </div>
+              <div class="file-name" id="fileName">
+                <span>✅</span>
+                <span id="fileNameText"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- STEP 2 -->
+        <div class="step">
+          <div class="step-num">02</div>
+          <div class="step-content">
+            <div class="step-label">Processar e Baixar Arquivos</div>
+            <button class="btn-process" id="btnProcess" disabled>
+              <div class="btn-spin"></div>
+              <span class="btn-icon">⚡</span>
+              <span class="btn-text">Processar Arquivo</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- LOG -->
+      <div class="log-box" id="logBox">
+        <div class="log-header">
+          <div class="log-title">Log de processamento</div>
+          <div class="log-status" id="logStatus">aguardando</div>
+        </div>
+        <div class="log-entries" id="logEntries"></div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="results" id="results">
+        <div class="result-label">Arquivos gerados — clique para baixar</div>
+
+        <div class="stats-bar" id="statsBar">
+          <div class="stat">
+            <div class="stat-val" id="statItens">—</div>
+            <div class="stat-key">Itens processados</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="statNFs">—</div>
+            <div class="stat-key">NFs geradas</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="statNFbase">—</div>
+            <div class="stat-key">NF inicial</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="statNFult">—</div>
+            <div class="stat-key">NF final</div>
+          </div>
+        </div>
+
+        <div class="result-cards" id="resultCards"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>Marchon NF Tools &nbsp;·&nbsp; Powered by JavaScript puro · Roda 100% no seu browser</footer>
+
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// ESTADO
+// ──────────────────────────────────────────────
+let selectedFile = null;
+const generatedFiles = []; // {name, blob, desc, icon}
+
+// ──────────────────────────────────────────────
+// DOM REFS
+// ──────────────────────────────────────────────
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const fileNameEl  = document.getElementById('fileNameText');
+const btnProcess  = document.getElementById('btnProcess');
+const logBox      = document.getElementById('logBox');
+const logEntries  = document.getElementById('logEntries');
+const logStatus   = document.getElementById('logStatus');
+const resultsEl   = document.getElementById('results');
+const resultCards = document.getElementById('resultCards');
+const statItens   = document.getElementById('statItens');
+const statNFs     = document.getElementById('statNFs');
+const statNFbase  = document.getElementById('statNFbase');
+const statNFult   = document.getElementById('statNFult');
+
+// ──────────────────────────────────────────────
+// DROP ZONE
+// ──────────────────────────────────────────────
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) setFile(e.target.files[0]);
+});
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.toLowerCase().endsWith('.txt')) setFile(f);
+  else alert('Por favor, selecione um arquivo .txt');
+});
+
+function setFile(f) {
+  selectedFile = f;
+  dropZone.classList.add('has-file');
+  fileNameEl.textContent = f.name;
+  btnProcess.disabled = false;
+
+  // reset resultados anteriores
+  resultsEl.classList.remove('visible');
+  logBox.classList.remove('visible');
+  logEntries.innerHTML = '';
+  resultCards.innerHTML = '';
+  generatedFiles.length = 0;
+}
+
+// ──────────────────────────────────────────────
+// LOG
+// ──────────────────────────────────────────────
+function log(msg, type = '') {
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8);
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg ${type}">${msg}</span>`;
+  logEntries.appendChild(line);
+  logEntries.scrollTop = logEntries.scrollHeight;
+}
+
+function setLogStatus(s) {
+  logStatus.textContent = s === 'ok' ? 'concluído' : s === 'err' ? 'erro' : 'processando';
+  logStatus.className = 'log-status' + (s ? ' ' + s : '');
+}
+
+// ──────────────────────────────────────────────
+// PROCESSAR
+// ──────────────────────────────────────────────
+btnProcess.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  // UI: loading
+  btnProcess.disabled = true;
+  btnProcess.classList.add('loading');
+  document.querySelector('.btn-text').textContent = 'Processando…';
+
+  logBox.classList.add('visible');
+  resultsEl.classList.remove('visible');
+  logEntries.innerHTML = '';
+  resultCards.innerHTML = '';
+  generatedFiles.length = 0;
+  setLogStatus('');
+
+  log('Lendo arquivo…', 'info');
+
+  try {
+    const raw = await readFileAsText(selectedFile);
+    const linhas = raw.split('\n').map((l, i, arr) => i < arr.length - 1 ? l + '\n' : l);
+
+    log(`Arquivo lido: ${linhas.length} linhas`, 'info');
+
+    // ── PROCESSAMENTO (espelho do Python) ──
+    const { linhasRevisadas, itemCount, baseNfInt, formatoAlinhamento } = processarLinhas(linhas);
+
+    log(`Itens (reg 20) encontrados: ${itemCount}`, 'info');
+
+    const nfsGeradas = Math.floor((itemCount - 1) / 100) + 1;
+    const ultimaNF   = baseNfInt + Math.floor((itemCount - 1) / 100);
+
+    log('Gerando DataFrame original…', 'info');
+    const dfOriginal = gerarDataframe(linhas);
+
+    log('Gerando DataFrame revisado…', 'info');
+    const dfRevisado = gerarDataframe(linhasRevisadas);
+
+    log('Criando Excel original…', 'info');
+    const nomeBase = selectedFile.name.replace(/\.[^.]+$/, '');
+    const xlsxOrig = dataframeParaXlsx(dfOriginal);
+
+    log('Criando Excel revisado…', 'info');
+    const xlsxRev  = dataframeParaXlsx(dfRevisado);
+
+    log('Criando TXT revisado…', 'info');
+    const txtRev   = new Blob([linhasRevisadas.join('')], { type: 'text/plain;charset=utf-8' });
+
+    // Guardar para download
+    generatedFiles.push({ name: `${nomeBase}_Excel_Original.xlsx`,  blob: xlsxOrig, desc: 'Excel com dados originais da NF', icon: '📊' });
+    generatedFiles.push({ name: `${nomeBase}_Excel_Revisado.xlsx`,  blob: xlsxRev,  desc: 'Excel com dados após quebra de NF',  icon: '📊' });
+    generatedFiles.push({ name: `${nomeBase}_TXT_Revisado.txt`,     blob: txtRev,   desc: 'TXT revisado com numeração corrigida', icon: '📝' });
+
+    // Stats
+    statItens.textContent  = itemCount;
+    statNFs.textContent    = nfsGeradas;
+    statNFbase.textContent = baseNfInt;
+    statNFult.textContent  = ultimaNF;
+
+    // Cards de download
+    renderResultCards();
+    resultsEl.classList.add('visible');
+
+    log(`✓ Processamento concluído! ${itemCount} itens — ${nfsGeradas} NF(s) gerada(s)`, 'success');
+    setLogStatus('ok');
+
+  } catch (err) {
+    log(`Erro: ${err.message}`, 'error');
+    setLogStatus('err');
+    console.error(err);
+  }
+
+  // Restaurar botão
+  btnProcess.disabled = false;
+  btnProcess.classList.remove('loading');
+  document.querySelector('.btn-text').textContent = 'Processar Arquivo';
+});
+
+// ──────────────────────────────────────────────
+// LEITURA DO ARQUIVO
+// ──────────────────────────────────────────────
+function readFileAsText(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload  = e => res(e.target.result);
+    reader.onerror = () => rej(new Error('Falha ao ler o arquivo'));
+    reader.readAsText(file, 'utf-8');
+  });
+}
+
+// ──────────────────────────────────────────────
+// PROCESSAMENTO DE LINHAS (espelho do Python)
+// ──────────────────────────────────────────────
+function processarLinhas(linhas) {
+  const linhasRevisadas = [];
+  let itemCount = 0;
+  let baseNfInt = null;
+  let formatoAlinhamento = 'esq_espacos';
+
+  for (const linha of linhas) {
+    if (linha.trim().length === 0) {
+      linhasRevisadas.push(linha);
+      continue;
+    }
+
+    const idReg = linha.substring(0, 2);
+
+    if (idReg === '20') {
+      const numNfOriginal = linha.substring(2, 20);
+
+      if (baseNfInt === null) {
+        baseNfInt = parseInt(numNfOriginal.trim(), 10);
+        if (numNfOriginal.startsWith('0')) {
+          formatoAlinhamento = 'dir_zeros';
+        }
+      }
+
+      const incremento = Math.floor(itemCount / 100);
+      const nfAtualInt = baseNfInt + incremento;
+
+      let novoNfStr;
+      if (formatoAlinhamento === 'dir_zeros') {
+        novoNfStr = String(nfAtualInt).padStart(18, '0');
+      } else {
+        novoNfStr = String(nfAtualInt).padEnd(18, ' ');
+      }
+
+      const novaLinha = linha.substring(0, 2) + novoNfStr + linha.substring(20);
+      linhasRevisadas.push(novaLinha);
+      itemCount++;
+    } else {
+      linhasRevisadas.push(linha);
+    }
+  }
+
+  return { linhasRevisadas, itemCount, baseNfInt, formatoAlinhamento };
+}
+
+// ──────────────────────────────────────────────
+// GERAR DATAFRAME (array de objetos) — espelho do pandas read_fwf
+// ──────────────────────────────────────────────
+const COLUNAS = {
+  ID_REG:      [0,   2],
+  NUM_NF:      [2,   20],
+  NCM:         [20,  30],
+  COD_ITEM:    [30,  52],
+  QUANTIDADE:  [52,  66],
+  UNIDADE:     [66,  68],
+  VALOR_UNIT:  [68,  84],
+  VALOR_TOTAL: [84,  100],
+  DESCRICAO:   [110, 210],
+};
+
+const COLS_NUMERIC = ['QUANTIDADE', 'VALOR_UNIT', 'VALOR_TOTAL'];
+
+function gerarDataframe(linhas) {
+  const rows = [];
+
+  for (const linha of linhas) {
+    if (linha.trim().length === 0) continue;
+
+    const row = {};
+    for (const [col, [s, e]] of Object.entries(COLUNAS)) {
+      row[col] = linha.length >= e ? linha.substring(s, e).trimEnd() : (linha.length > s ? linha.substring(s).trimEnd() : '');
+    }
+
+    if (row.ID_REG !== '20') continue;
+
+    for (const col of COLS_NUMERIC) {
+      const v = parseFloat(row[col].trim());
+      row[col] = isNaN(v) ? null : v;
+    }
+
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+// ──────────────────────────────────────────────
+// DATAFRAME → XLSX (SheetJS)
+// ──────────────────────────────────────────────
+function dataframeParaXlsx(df) {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(df);
+  XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+  const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+// ──────────────────────────────────────────────
+// RENDER RESULT CARDS
+// ──────────────────────────────────────────────
+function renderResultCards() {
+  resultCards.innerHTML = '';
+  for (const f of generatedFiles) {
+    const el = document.createElement('div');
+    el.className = 'result-item';
+    el.innerHTML = `
+      <div class="result-item-icon">${f.icon}</div>
+      <div class="result-item-info">
+        <div class="result-item-name">${f.name}</div>
+        <div class="result-item-desc">${f.desc}</div>
+      </div>
+      <div class="result-item-arrow">↓</div>
+    `;
+    el.addEventListener('click', () => downloadBlob(f.blob, f.name));
+    resultCards.appendChild(el);
+  }
+}
+
+// ──────────────────────────────────────────────
+// DOWNLOAD
+// ──────────────────────────────────────────────
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+</script>
+</body>
+</html>
